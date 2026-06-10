@@ -4,8 +4,8 @@ One command to bring up the whole address-verification stack.
 
 Pipeline:
   1. Make sure Docker is running.
-  2. Make sure the PostgreSQL container is up (reuses tools/start_postgres.py,
-     so the existing ~4.86M-row `il_addresses` data is never recreated).
+  2. Make sure the PostgreSQL container is up (via db/start_db.py, reusing the
+     existing data volume so the ~4.86M-row `il_addresses` data is never recreated).
   3. Initialize the databases (idempotent):
        - nad:     pg_trgm + the trigram search index  (first build takes a few minutes)
        - nad_sub: created if missing, plus the submissions table
@@ -31,7 +31,6 @@ import urllib.request
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_DIR = os.path.dirname(APP_DIR)
-TOOLS_DIR = os.path.join(REPO_DIR, "tools")
 DB_DIR = os.path.join(APP_DIR, "db")
 TF_DIR = os.path.join(APP_DIR, "terraform")
 
@@ -114,7 +113,7 @@ def ensure_postgres():
         print(f"PostgreSQL container '{PG_CONTAINER}' is running.")
     else:
         print(f"PostgreSQL container not running ({state}); starting it...")
-        run([sys.executable, os.path.join(TOOLS_DIR, "start_postgres.py")])
+        run([sys.executable, os.path.join(DB_DIR, "start_db.py")])
 
     # Sanity-check the reference data.
     try:
