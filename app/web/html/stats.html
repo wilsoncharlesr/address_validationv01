@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Address Statistics</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <div class="brand">NAD <span>Address Verification</span></div>
+    <nav>
+      <a href="index.html">Verify</a>
+      <a href="stats.html" class="active">Statistics</a>
+    </nav>
+  </header>
+
+  <main>
+    <div style="display:flex; align-items:center; justify-content:space-between;">
+      <div>
+        <h1>Address statistics</h1>
+        <p class="subtitle">Counts by county and state across both databases.</p>
+      </div>
+      <button id="refreshBtn" class="secondary">Refresh</button>
+    </div>
+
+    <div id="message"></div>
+
+    <div class="stats-grid">
+      <section class="card">
+        <div class="db-title">
+          <h2><code>nad</code> &mdash; reference data</h2>
+          <div class="total" id="nadTotal">&mdash;<small> addresses</small></div>
+        </div>
+        <div class="breakdown">
+          <h3>Addresses per state</h3>
+          <div id="nadByState" class="scroll"></div>
+          <h3>Addresses per county</h3>
+          <div id="nadByCounty" class="scroll"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="db-title">
+          <h2><code>nad_sub</code> &mdash; submitted</h2>
+          <div class="total" id="subTotal">&mdash;<small> addresses</small></div>
+        </div>
+        <div class="breakdown">
+          <h3>Addresses per state</h3>
+          <div id="subByState" class="scroll"></div>
+          <h3>Addresses per county</h3>
+          <div id="subByCounty" class="scroll"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="stats.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+# --- OS / editor noise ---
+.DS_Store
+**/.DS_Store
+.vscode/
+.idea/
+
+# --- Claude Code local settings (machine-specific) ---
+.claude/
+
+# --- NAD source data: 40+ GB raw files, never commit (GitHub caps at 100 MB) ---
+data/
+
+# --- .NET build artifacts ---
+**/bin/
+**/obj/
+
+# --- Terraform ---
+**/.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+crash.log
+*.tfvars
+
+# --- Python ---
+**/__pycache__/
+*.py[cod]

@@ -1,0 +1,8 @@
+bin/
+obj/
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.*
+__pycache__/
+.DS_Store

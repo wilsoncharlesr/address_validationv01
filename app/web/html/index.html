@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Address Verification</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <div class="brand">NAD <span>Address Verification</span></div>
+    <nav>
+      <a href="index.html" class="active">Verify</a>
+      <a href="stats.html">Statistics</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Verify an address</h1>
+    <p class="subtitle">
+      Type an address. We search the National Address Database for the closest
+      matches, you confirm the right one, and it is saved to <code>nad_sub</code>.
+    </p>
+
+    <div class="card">
+      <label for="query">Address</label>
+      <div class="search-row">
+        <input id="query" type="text" autocomplete="off"
+               placeholder="e.g. 1916 Lombard Ave, Berwyn IL 60402" />
+        <button id="searchBtn">Search</button>
+      </div>
+      <p class="hint">Street, city, state and ZIP all help — partial is fine.</p>
+    </div>
+
+    <div id="message"></div>
+
+    <div id="results" class="results hidden">
+      <h2>Top matches — pick the correct one</h2>
+      <div id="resultList"></div>
+      <div class="actions">
+        <button id="submitBtn" disabled>Submit selected address</button>
+        <span class="muted" id="selectionHint">Select a match to enable submit.</span>
+      </div>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
