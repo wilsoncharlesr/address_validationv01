@@ -35,9 +35,11 @@ static NpgsqlDataSource BuildDataSource(string connString)
 var nadDataSource = BuildDataSource(nadConn);
 var nadSubDataSource = BuildDataSource(nadSubConn);
 
+var repository = new AddressRepository(nadDataSource, nadSubDataSource, nadTable);
+
 builder.Services.AddSingleton(nadDataSource);
 builder.Services.AddSingleton(nadSubDataSource);
-builder.Services.AddSingleton(new AddressRepository(nadDataSource, nadSubDataSource, nadTable));
+builder.Services.AddSingleton(repository);
 
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
@@ -149,5 +151,12 @@ app.MapGet("/api/stats", async (AddressRepository repo, IMemoryCache cache, Canc
         statsRefreshLock.Release();
     }
 });
+
+// Warm the trigram index before binding the port: the health endpoint (and
+// therefore the deploy's readiness wait) only answers once this completes,
+// so a cold container never serves 5s-timeout 500s to real traffic.
+var warmupWatch = System.Diagnostics.Stopwatch.StartNew();
+await repository.WarmupAsync();
+app.Logger.LogInformation("Trigram index warmup completed in {ElapsedMs} ms", warmupWatch.ElapsedMilliseconds);
 
 app.Run();

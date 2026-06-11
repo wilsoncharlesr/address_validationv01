@@ -47,6 +47,27 @@ public sealed partial class AddressRepository
         _table = table;
     }
 
+    /// <summary>
+    /// Page the trigram GiST index into cache before the service takes
+    /// traffic. On a cold PostgreSQL the first KNN search faults in the upper
+    /// index levels from disk and can blow past the 5s fail-fast command
+    /// timeout (surfacing as 500s) — so this runs one deliberately slow
+    /// warmup search with a generous timeout at startup instead.
+    /// </summary>
+    public async Task WarmupAsync()
+    {
+        await using var conn = await _nad.OpenConnectionAsync();
+        var sql = $@"
+SELECT count(*) FROM (
+    SELECT uuid FROM {_table}
+    ORDER BY {FullExpr} <-> lower(@q)
+    LIMIT 100
+) warm";
+        await using var cmd = new NpgsqlCommand(sql, conn) { CommandTimeout = 300 };
+        cmd.Parameters.Add(new NpgsqlParameter<string>("q", "100 main street springfield il 62701"));
+        await cmd.ExecuteScalarAsync();
+    }
+
     /// <summary>Return the top <paramref name="limit"/> closest addresses to the query string.</summary>
     public async Task<List<AddressResult>> SearchAsync(string query, int limit = 3, CancellationToken ct = default)
     {
