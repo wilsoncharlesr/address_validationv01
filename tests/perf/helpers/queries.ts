@@ -13,7 +13,7 @@ export const ZIP_QUERIES: string[] = [
   '233 s wacker dr chicago il 60606',
   '100 n western ave chicago il 60612',
   '500 e monroe st springfield il 62701',
-  '1401 w green st urbana il 61801',
+  '9000 s commercial ave chicago il 60617',
   '4800 n broadway chicago il 60640',
   '201 w lake st addison il 60101',
   '1200 e algonquin rd schaumburg il 60173',
