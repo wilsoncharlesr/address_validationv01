@@ -42,26 +42,50 @@ builder.Services.AddSingleton(new AddressRepository(nadDataSource, nadSubDataSou
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
-builder.Services.AddMemoryCache();
+// SizeLimit counts entries (every Set specifies Size = 1): ~100K cached
+// top-3 result lists is roughly 60 MB worst case. NAD reference data only
+// changes via bulk reload + restart, which clears this cache by definition.
+builder.Services.AddMemoryCache(o => o.SizeLimit = 100_000);
+builder.Services.AddSingleton<CacheMetrics>();
 
 var app = builder.Build();
 app.UseCors();
 
 // --- Endpoints ---
-app.MapGet("/api/health", () => Results.Ok(new { status = "ok", table = nadTable }));
+app.MapGet("/api/health", (CacheMetrics metrics) =>
+    Results.Ok(new { status = "ok", table = nadTable, cacheHits = metrics.Hits, cacheMisses = metrics.Misses }));
 
 // CancellationToken binds to HttpContext.RequestAborted: when the client
 // disconnects, Npgsql sends a CANCEL to Postgres so abandoned queries stop
 // burning DB CPU. 499 = client closed request (nobody reads it; it exists so
 // the cancellation doesn't surface as an error-level unhandled exception).
-app.MapPost("/api/verify", async (VerifyRequest req, AddressRepository repo, CancellationToken ct) =>
+app.MapPost("/api/verify", async (VerifyRequest req, AddressRepository repo,
+    IMemoryCache cache, CacheMetrics metrics, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(req.Query))
         return Results.BadRequest(new { error = "query is required" });
 
+    // NAD is read-only reference data: identical queries always produce
+    // identical results, so cache hits never go stale within a deploy.
+    var key = CacheKeys.Verify(req.Query);
+    if (cache.TryGetValue(key, out List<AddressResult>? cached) && cached is not null)
+    {
+        metrics.Hit();
+        return Results.Ok(cached);
+    }
+
     try
     {
+        metrics.Miss();
         var matches = await repo.SearchAsync(req.Query.Trim(), limit: 3, ct);
+        cache.Set(key, matches, new MemoryCacheEntryOptions
+        {
+            Size = 1,
+            // Misses (empty results) repeat too, but expire them sooner so a
+            // typo fixed by a data reload isn't pinned for an hour.
+            AbsoluteExpirationRelativeToNow =
+                matches.Count > 0 ? TimeSpan.FromHours(1) : TimeSpan.FromMinutes(5),
+        });
         return Results.Ok(matches);
     }
     catch (OperationCanceledException) when (ct.IsCancellationRequested)
