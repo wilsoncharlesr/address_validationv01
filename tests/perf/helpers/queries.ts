@@ -47,3 +47,14 @@ export const ALL_VERIFY_QUERIES = [...ZIP_QUERIES, ...KNN_QUERIES, ...BAD_ZIP_QU
 export function pick<T>(arr: T[], i: number): T {
   return arr[i % arr.length];
 }
+
+/**
+ * A query that is unique per seq (varying house number), so it always MISSES
+ * the API's verify-result cache and exercises the real database path. Use the
+ * plain corpora to measure cache-hit behavior, this to measure miss behavior.
+ */
+export function uniqueQuery(arr: string[], seq: number): string {
+  const q = pick(arr, seq);
+  const house = String(100 + (seq % 9899));
+  return /^\d+/.test(q) ? q.replace(/^\d+/, house) : `${house} ${q}`;
+}
