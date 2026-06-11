@@ -90,6 +90,9 @@ def start(rebuild=False):
         "--volume", f"{VOLUME_NAME}:/var/lib/postgresql/data",
         "--env", "POSTGRES_HOST_AUTH_METHOD=trust",
         IMAGE_NAME,
+        # The API runs two Npgsql pools of up to 200 connections each; default
+        # max_connections=100 would exhaust under load.
+        "-c", "max_connections=500",
     ])
     wait_until_ready()
     status()
