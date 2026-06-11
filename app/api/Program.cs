@@ -1,4 +1,5 @@
 using AddressVerification;
+using Microsoft.Extensions.Caching.Memory;
 using Npgsql;
 
 // Burst absorption: pre-grow the thread pool so traffic spikes don't stall on
@@ -41,6 +42,8 @@ builder.Services.AddSingleton(new AddressRepository(nadDataSource, nadSubDataSou
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
+builder.Services.AddMemoryCache();
+
 var app = builder.Build();
 app.UseCors();
 
@@ -65,6 +68,34 @@ app.MapPost("/api/submit", async (SubmitRequest req, AddressRepository repo) =>
     return Results.Ok(new { id, message = "Address submitted to nad_sub." });
 });
 
-app.MapGet("/api/stats", async (AddressRepository repo) => Results.Ok(await repo.StatsAsync()));
+// The stats aggregates scan 4.86M rows; uncached they are a self-DoS. One
+// refresh at a time (single-flight) and a 30s TTL keep the cost bounded no
+// matter how hard the endpoint is polled.
+var statsRefreshLock = new SemaphoreSlim(1, 1);
+
+app.MapGet("/api/stats", async (AddressRepository repo, IMemoryCache cache) =>
+{
+    if (cache.TryGetValue(CacheKeys.Stats, out StatsResponse? cached) && cached is not null)
+        return Results.Ok(cached);
+
+    await statsRefreshLock.WaitAsync();
+    try
+    {
+        if (cache.TryGetValue(CacheKeys.Stats, out cached) && cached is not null)
+            return Results.Ok(cached);
+
+        var stats = await repo.StatsAsync();
+        cache.Set(CacheKeys.Stats, stats, new MemoryCacheEntryOptions
+        {
+            Size = 1,
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30),
+        });
+        return Results.Ok(stats);
+    }
+    finally
+    {
+        statsRefreshLock.Release();
+    }
+});
 
 app.Run();

@@ -137,9 +137,11 @@ RETURNING id";
     /// <summary>Per-county / per-state breakdowns for both databases.</summary>
     public async Task<StatsResponse> StatsAsync()
     {
-        var nad = await DbStatsAsync(_nad, _table);
-        var nadSub = await DbStatsAsync(_nadSub, "submissions");
-        return new StatsResponse(nad, nadSub);
+        // Separate data sources, so the two scans can run concurrently.
+        var nadTask = DbStatsAsync(_nad, _table);
+        var nadSubTask = DbStatsAsync(_nadSub, "submissions");
+        await Task.WhenAll(nadTask, nadSubTask);
+        return new StatsResponse(await nadTask, await nadSubTask);
     }
 
     private static async Task<DbStats> DbStatsAsync(NpgsqlDataSource ds, string table)
