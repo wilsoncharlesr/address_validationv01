@@ -13,27 +13,34 @@ Wraps the proven COPY pipeline in load_nad_postgres.py (same container, same
      the expression MUST match AddressRepository.FullExpr exactly)
   4. ANALYZE
 
+  5. switch the app over: persist nad_table in app/terraform/terraform.tfvars,
+     re-apply terraform (recreates the api container with the new NAD_TABLE),
+     and verify /api/health reports the new table
+
 USAGE
-  python3 load_all_addresses.py --limit 100000    # quick sample, no indexes
-  python3 load_all_addresses.py                   # full load (COPY ~1h, GiST index several h)
-  python3 load_all_addresses.py --recreate        # drop table, then full load
+  python3 load_all_addresses.py --limit 100000    # quick sample, no indexes, no switch
+  python3 load_all_addresses.py                   # full load + switch the app
+  python3 load_all_addresses.py --no-switch       # full load, leave the app alone
+  python3 load_all_addresses.py --recreate        # drop table, then full load + switch
   python3 load_all_addresses.py --index-only      # (re)build indexes on existing rows
+  python3 load_all_addresses.py --switch-only     # just point the app at --table
   python3 load_all_addresses.py --count           # row count and exit
   python3 load_all_addresses.py --drop-table      # drop the table and exit
 
-The DB container must be running (python3 app/db/start_db.py). After a full
-load, point the API at the new table:
-
-  terraform: -var nad_table=nad_addresses   (or env NAD_TABLE=nad_addresses)
-  then restart the api container — its startup warmup will page the new
-  trigram index in before serving traffic.
+The DB container must be running (python3 app/db/start_db.py). The switch step
+refuses to point the app at a table that is empty or missing the trigram
+index, and the api container's startup warmup pages the new index in before
+the health check passes — so traffic never sees a cold or unsearchable table.
 """
 
 import argparse
+import json
 import os
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
@@ -57,11 +64,92 @@ FULL_EXPR = (
 )
 
 
+TF_DIR = os.path.join(os.path.dirname(SCRIPT_DIR), "app", "terraform")
+TFVARS_PATH = os.path.join(TF_DIR, "terraform.tfvars")
+# Host port the api container publishes (terraform var api_port default).
+API_HEALTH_URL = "http://localhost:8081/api/health"
+
+
 def container_running():
     state = subprocess.run(
         ["docker", "inspect", "--format", "{{.State.Status}}", base.CONTAINER],
         capture_output=True, text=True)
     return state.returncode == 0 and state.stdout.strip() == "running"
+
+
+def table_exists(database, table):
+    out = base.psql(database, f"SELECT to_regclass('{table}') IS NOT NULL",
+                    capture=True)
+    return out == "t"
+
+
+def trigram_index_exists(database, table):
+    out = base.psql(database,
+                    f"SELECT 1 FROM pg_indexes WHERE tablename = '{table}' "
+                    f"AND indexname = 'idx_{table}_fullgist'",
+                    capture=True)
+    return out == "1"
+
+
+def write_tfvars(table):
+    """Persist nad_table in terraform.tfvars so every future
+    `terraform apply` / start.py run keeps using it (a -var flag would be
+    forgotten on the next plain apply and silently revert the app)."""
+    lines = []
+    if os.path.exists(TFVARS_PATH):
+        with open(TFVARS_PATH) as fh:
+            lines = [l for l in fh.read().splitlines()
+                     if not l.strip().startswith("nad_table")]
+    lines.append(f'nad_table = "{table}"')
+    with open(TFVARS_PATH, "w") as fh:
+        fh.write("\n".join(lines) + "\n")
+    print(f"Wrote nad_table = \"{table}\" to {os.path.relpath(TFVARS_PATH)}")
+
+
+def switch_app(database, table, timeout_seconds=600):
+    """Point the running app at <table>: guards, tfvars, terraform apply,
+    then wait for the API to come back healthy on the new table."""
+    if not table_exists(database, table):
+        sys.exit(f"Cannot switch the app: table '{table}' does not exist in "
+                 f"database '{database}'. Run the load first.")
+    rows = base.row_count(database, table)
+    if rows == 0:
+        sys.exit(f"Cannot switch the app: table '{table}' is empty.")
+    if not trigram_index_exists(database, table):
+        sys.exit(f"Cannot switch the app: '{table}' has no trigram GiST index "
+                 f"(idx_{table}_fullgist) — every search would sequential-scan "
+                 f"{rows:,} rows. Run: python3 {os.path.basename(__file__)} "
+                 f"--index-only --table {table}")
+
+    write_tfvars(table)
+    print("Applying terraform (recreates the api container with "
+          f"NAD_TABLE={table})...", flush=True)
+    result = subprocess.run(
+        ["terraform", f"-chdir={TF_DIR}", "apply",
+         "-auto-approve", "-input=false"],
+        capture_output=True, text=True)
+    if result.returncode != 0:
+        sys.exit(f"terraform apply failed:\n{result.stderr.strip()}")
+
+    # The api startup warmup pages the new trigram index in before the
+    # health endpoint answers — generous timeout for a cold 74M-row index.
+    print(f"Waiting for the API on {API_HEALTH_URL} (warmup can take a few "
+          "minutes on a cold index)...", flush=True)
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(API_HEALTH_URL, timeout=5) as resp:
+                health = json.load(resp)
+            if health.get("table") == table:
+                print(f"API is up and serving from '{table}' "
+                      f"({rows:,} rows).")
+                return
+            # API answered but with the old table — container still swapping.
+        except (urllib.error.URLError, ConnectionError, OSError, ValueError):
+            pass
+        time.sleep(3)
+    sys.exit(f"API did not come back on '{table}' within {timeout_seconds}s; "
+             f"check: docker logs address-verification-api")
 
 
 def free_gb_on_data_volume():
@@ -105,11 +193,15 @@ def main():
                         help="allow loading into a table that already has rows")
     parser.add_argument("--no-trigram", action="store_true",
                         help="skip the pg_trgm GiST index")
+    parser.add_argument("--no-switch", action="store_true",
+                        help="after a full load, leave the app on its current table")
     parser.add_argument("--force", action="store_true",
                         help="proceed even if the disk-space check fails")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--index-only", action="store_true",
                        help="only (re)build indexes on the existing table")
+    group.add_argument("--switch-only", action="store_true",
+                       help="only point the app at --table (no load)")
     group.add_argument("--count", action="store_true",
                        help="print the table row count and exit")
     group.add_argument("--drop-table", action="store_true",
@@ -130,6 +222,9 @@ def main():
     if args.index_only:
         build_all_indexes(args.database, args.table,
                           skip_trigram=args.no_trigram)
+        return
+    if args.switch_only:
+        switch_app(args.database, args.table)
         return
 
     if not args.limit:
@@ -165,16 +260,23 @@ def main():
         base.copy_file(args.database, args.table, path, limit=args.limit)
 
     if args.limit:
-        print("\nSample load done (indexes skipped with --limit).")
-    else:
-        build_all_indexes(args.database, args.table,
-                          skip_trigram=args.no_trigram)
+        print("\nSample load done (indexes skipped with --limit; the app was "
+              "not switched — use --switch-only deliberately for samples).")
+        return
 
+    build_all_indexes(args.database, args.table, skip_trigram=args.no_trigram)
     total = base.row_count(args.database, args.table)
     print(f"\nLoad complete: {total:,} rows in {args.database}.{args.table}")
-    print("\nPoint the API at this table and restart it:")
-    print(f"  terraform -chdir=app/terraform apply -var nad_table={args.table}")
-    print(f"  (or set NAD_TABLE={args.table} and restart the api container)")
+
+    if args.no_switch or args.no_trigram:
+        if args.no_trigram and not args.no_switch:
+            print("App not switched: --no-trigram means the table is not "
+                  "searchable by the API yet.")
+        print("Switch the app later with: "
+              f"python3 {os.path.basename(__file__)} --switch-only "
+              f"--table {args.table}")
+    else:
+        switch_app(args.database, args.table)
 
 
 if __name__ == "__main__":
