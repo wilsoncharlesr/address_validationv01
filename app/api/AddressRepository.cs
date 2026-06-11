@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace AddressVerification;
 
@@ -8,7 +9,7 @@ namespace AddressVerification;
 /// server: <c>nad</c> (read-only NAD reference data) and <c>nad_sub</c> (the
 /// addresses users confirm and submit).
 /// </summary>
-public sealed class AddressRepository
+public sealed partial class AddressRepository
 {
     private readonly NpgsqlDataSource _nad;
     private readonly NpgsqlDataSource _nadSub;
@@ -29,7 +30,11 @@ public sealed class AddressRepository
         county, state, zip_code, latitude, longitude,
         similarity({FullExpr}, lower(@q)) AS score";
 
-    private static readonly Regex ZipPattern = new(@"\b(\d{5})\b", RegexOptions.Compiled);
+    [GeneratedRegex(@"\b(\d{5})\b")]
+    private static partial Regex ZipPattern();
+
+    [GeneratedRegex("^[A-Za-z_][A-Za-z0-9_]*$")]
+    private static partial Regex IdentifierPattern();
 
     public AddressRepository(NpgsqlDataSource nad, NpgsqlDataSource nadSub, string table)
     {
@@ -37,7 +42,7 @@ public sealed class AddressRepository
         _nadSub = nadSub;
         // The table name comes from trusted config, but it is interpolated into
         // SQL, so reject anything that is not a plain identifier.
-        if (!Regex.IsMatch(table, "^[A-Za-z_][A-Za-z0-9_]*$"))
+        if (!IdentifierPattern().IsMatch(table))
             throw new ArgumentException($"Invalid table name: {table}");
         _table = table;
     }
@@ -49,7 +54,7 @@ public sealed class AddressRepository
 
         // Fast path: a 5-digit ZIP narrows the table to a few thousand rows via
         // the zip_code index, which we then rank by similarity (~tens of ms).
-        var zipMatch = ZipPattern.Match(query);
+        var zipMatch = ZipPattern().Match(query);
         if (zipMatch.Success)
         {
             var byZip = $@"
@@ -59,9 +64,9 @@ WHERE zip_code = @zip
 ORDER BY score DESC
 LIMIT @lim";
             await using var zipCmd = new NpgsqlCommand(byZip, conn);
-            zipCmd.Parameters.AddWithValue("q", query);
-            zipCmd.Parameters.AddWithValue("zip", zipMatch.Groups[1].Value);
-            zipCmd.Parameters.AddWithValue("lim", limit);
+            zipCmd.Parameters.Add(new NpgsqlParameter<string>("q", query));
+            zipCmd.Parameters.Add(new NpgsqlParameter<string>("zip", zipMatch.Groups[1].Value));
+            zipCmd.Parameters.Add(new NpgsqlParameter<int>("lim", limit));
 
             var zipResults = await ReadResultsAsync(zipCmd, ct);
             if (zipResults.Count > 0)
@@ -76,8 +81,8 @@ FROM {_table}
 ORDER BY {FullExpr} <-> lower(@q)
 LIMIT @lim";
         await using var cmd = new NpgsqlCommand(knn, conn);
-        cmd.Parameters.AddWithValue("q", query);
-        cmd.Parameters.AddWithValue("lim", limit);
+        cmd.Parameters.Add(new NpgsqlParameter<string>("q", query));
+        cmd.Parameters.Add(new NpgsqlParameter<int>("lim", limit));
         return await ReadResultsAsync(cmd, ct);
     }
 
@@ -100,7 +105,8 @@ LIMIT @lim";
                 Zip = r.IsDBNull(7) ? null : r.GetString(7),
                 Latitude = r.IsDBNull(8) ? null : r.GetDouble(8),
                 Longitude = r.IsDBNull(9) ? null : r.GetDouble(9),
-                Score = r.IsDBNull(10) ? 0 : Convert.ToDouble(r.GetValue(10)),
+                // similarity() returns float4 — read it directly, no boxing
+                Score = r.IsDBNull(10) ? 0 : r.GetFloat(10),
             });
         }
         return results;
@@ -118,17 +124,17 @@ RETURNING id";
 
         await using var conn = await _nadSub.OpenConnectionAsync(ct);
         await using var cmd = new NpgsqlCommand(sql, conn);
-        cmd.Parameters.AddWithValue("q", Nz(s.Query));
-        cmd.Parameters.AddWithValue("uuid", Nz(s.Uuid));
-        cmd.Parameters.AddWithValue("addr", Nz(s.Address));
-        cmd.Parameters.AddWithValue("unit", Nz(s.Unit));
-        cmd.Parameters.AddWithValue("city", Nz(s.City));
-        cmd.Parameters.AddWithValue("county", Nz(s.County));
-        cmd.Parameters.AddWithValue("state", Nz(s.State));
-        cmd.Parameters.AddWithValue("zip", Nz(s.Zip));
-        cmd.Parameters.AddWithValue("lat", (object?)s.Latitude ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("lon", (object?)s.Longitude ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("score", s.Score);
+        cmd.Parameters.Add(Text("q", s.Query));
+        cmd.Parameters.Add(Text("uuid", s.Uuid));
+        cmd.Parameters.Add(Text("addr", s.Address));
+        cmd.Parameters.Add(Text("unit", s.Unit));
+        cmd.Parameters.Add(Text("city", s.City));
+        cmd.Parameters.Add(Text("county", s.County));
+        cmd.Parameters.Add(Text("state", s.State));
+        cmd.Parameters.Add(Text("zip", s.Zip));
+        cmd.Parameters.Add(Dbl("lat", s.Latitude));
+        cmd.Parameters.Add(Dbl("lon", s.Longitude));
+        cmd.Parameters.Add(new NpgsqlParameter<float>("score", (float)s.Score));
 
         var id = await cmd.ExecuteScalarAsync(ct);
         return Convert.ToInt64(id);
@@ -172,5 +178,11 @@ RETURNING id";
         return rows;
     }
 
-    private static object Nz(string? s) => string.IsNullOrWhiteSpace(s) ? DBNull.Value : s;
+    // Explicitly typed parameters: no per-call type inference, and stable
+    // parameter types keep auto-prepared statements reusable.
+    private static NpgsqlParameter Text(string name, string? value) =>
+        new(name, NpgsqlDbType.Text) { Value = string.IsNullOrWhiteSpace(value) ? DBNull.Value : value };
+
+    private static NpgsqlParameter Dbl(string name, double? value) =>
+        new(name, NpgsqlDbType.Double) { Value = (object?)value ?? DBNull.Value };
 }

@@ -42,6 +42,9 @@ builder.Services.AddSingleton(new AddressRepository(nadDataSource, nadSubDataSou
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
+builder.Services.ConfigureHttpJsonOptions(o =>
+    o.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default));
+
 // SizeLimit counts entries (every Set specifies Size = 1): ~100K cached
 // top-3 result lists is roughly 60 MB worst case. NAD reference data only
 // changes via bulk reload + restart, which clears this cache by definition.
@@ -49,11 +52,15 @@ builder.Services.AddMemoryCache(o => o.SizeLimit = 100_000);
 builder.Services.AddSingleton<CacheMetrics>();
 
 var app = builder.Build();
-app.UseCors();
+
+// In production nginx proxies /api/ same-origin, so CORS is dev-only
+// (e.g. opening the static HTML directly against `dotnet run`).
+if (app.Environment.IsDevelopment())
+    app.UseCors();
 
 // --- Endpoints ---
 app.MapGet("/api/health", (CacheMetrics metrics) =>
-    Results.Ok(new { status = "ok", table = nadTable, cacheHits = metrics.Hits, cacheMisses = metrics.Misses }));
+    Results.Ok(new HealthResponse("ok", nadTable, metrics.Hits, metrics.Misses)));
 
 // CancellationToken binds to HttpContext.RequestAborted: when the client
 // disconnects, Npgsql sends a CANCEL to Postgres so abandoned queries stop
@@ -63,7 +70,7 @@ app.MapPost("/api/verify", async (VerifyRequest req, AddressRepository repo,
     IMemoryCache cache, CacheMetrics metrics, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(req.Query))
-        return Results.BadRequest(new { error = "query is required" });
+        return Results.BadRequest(new ErrorResponse("query is required"));
 
     // NAD is read-only reference data: identical queries always produce
     // identical results, so cache hits never go stale within a deploy.
@@ -97,12 +104,12 @@ app.MapPost("/api/verify", async (VerifyRequest req, AddressRepository repo,
 app.MapPost("/api/submit", async (SubmitRequest req, AddressRepository repo, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(req.Address))
-        return Results.BadRequest(new { error = "address is required" });
+        return Results.BadRequest(new ErrorResponse("address is required"));
 
     try
     {
         var id = await repo.SubmitAsync(req, ct);
-        return Results.Ok(new { id, message = "Address submitted to nad_sub." });
+        return Results.Ok(new SubmitResponse(id, "Address submitted to nad_sub."));
     }
     catch (OperationCanceledException) when (ct.IsCancellationRequested)
     {

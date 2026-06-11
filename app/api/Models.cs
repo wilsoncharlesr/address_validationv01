@@ -38,6 +38,15 @@ public record SubmitRequest
     public double Score { get; init; }
 }
 
+/// <summary>Body of GET /api/health, including verify-cache effectiveness.</summary>
+public record HealthResponse(string Status, string Table, long CacheHits, long CacheMisses);
+
+/// <summary>Error body for 400 responses.</summary>
+public record ErrorResponse(string Error);
+
+/// <summary>Body of POST /api/submit's success response.</summary>
+public record SubmitResponse(long Id, string Message);
+
 /// <summary>A single (name, count) row in a statistics breakdown.</summary>
 public record Bucket(string Name, long Count);
 
