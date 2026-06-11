@@ -50,22 +50,40 @@ app.UseCors();
 // --- Endpoints ---
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok", table = nadTable }));
 
-app.MapPost("/api/verify", async (VerifyRequest req, AddressRepository repo) =>
+// CancellationToken binds to HttpContext.RequestAborted: when the client
+// disconnects, Npgsql sends a CANCEL to Postgres so abandoned queries stop
+// burning DB CPU. 499 = client closed request (nobody reads it; it exists so
+// the cancellation doesn't surface as an error-level unhandled exception).
+app.MapPost("/api/verify", async (VerifyRequest req, AddressRepository repo, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(req.Query))
         return Results.BadRequest(new { error = "query is required" });
 
-    var matches = await repo.SearchAsync(req.Query.Trim(), limit: 3);
-    return Results.Ok(matches);
+    try
+    {
+        var matches = await repo.SearchAsync(req.Query.Trim(), limit: 3, ct);
+        return Results.Ok(matches);
+    }
+    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+    {
+        return Results.StatusCode(499);
+    }
 });
 
-app.MapPost("/api/submit", async (SubmitRequest req, AddressRepository repo) =>
+app.MapPost("/api/submit", async (SubmitRequest req, AddressRepository repo, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(req.Address))
         return Results.BadRequest(new { error = "address is required" });
 
-    var id = await repo.SubmitAsync(req);
-    return Results.Ok(new { id, message = "Address submitted to nad_sub." });
+    try
+    {
+        var id = await repo.SubmitAsync(req, ct);
+        return Results.Ok(new { id, message = "Address submitted to nad_sub." });
+    }
+    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+    {
+        return Results.StatusCode(499);
+    }
 });
 
 // The stats aggregates scan 4.86M rows; uncached they are a self-DoS. One
@@ -73,17 +91,20 @@ app.MapPost("/api/submit", async (SubmitRequest req, AddressRepository repo) =>
 // matter how hard the endpoint is polled.
 var statsRefreshLock = new SemaphoreSlim(1, 1);
 
-app.MapGet("/api/stats", async (AddressRepository repo, IMemoryCache cache) =>
+app.MapGet("/api/stats", async (AddressRepository repo, IMemoryCache cache, CancellationToken ct) =>
 {
     if (cache.TryGetValue(CacheKeys.Stats, out StatsResponse? cached) && cached is not null)
         return Results.Ok(cached);
 
-    await statsRefreshLock.WaitAsync();
+    await statsRefreshLock.WaitAsync(ct);
     try
     {
         if (cache.TryGetValue(CacheKeys.Stats, out cached) && cached is not null)
             return Results.Ok(cached);
 
+        // Deliberately NOT cancelled by this caller: the refresh is shared
+        // work whose result every queued caller (and the next 30s of traffic)
+        // will reuse — one impatient client must not poison it.
         var stats = await repo.StatsAsync();
         cache.Set(CacheKeys.Stats, stats, new MemoryCacheEntryOptions
         {

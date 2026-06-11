@@ -43,9 +43,9 @@ public sealed class AddressRepository
     }
 
     /// <summary>Return the top <paramref name="limit"/> closest addresses to the query string.</summary>
-    public async Task<List<AddressResult>> SearchAsync(string query, int limit = 3)
+    public async Task<List<AddressResult>> SearchAsync(string query, int limit = 3, CancellationToken ct = default)
     {
-        await using var conn = await _nad.OpenConnectionAsync();
+        await using var conn = await _nad.OpenConnectionAsync(ct);
 
         // Fast path: a 5-digit ZIP narrows the table to a few thousand rows via
         // the zip_code index, which we then rank by similarity (~tens of ms).
@@ -63,7 +63,7 @@ LIMIT @lim";
             zipCmd.Parameters.AddWithValue("zip", zipMatch.Groups[1].Value);
             zipCmd.Parameters.AddWithValue("lim", limit);
 
-            var zipResults = await ReadResultsAsync(zipCmd);
+            var zipResults = await ReadResultsAsync(zipCmd, ct);
             if (zipResults.Count > 0)
                 return zipResults;   // otherwise the ZIP was bad — fall through
         }
@@ -78,14 +78,14 @@ LIMIT @lim";
         await using var cmd = new NpgsqlCommand(knn, conn);
         cmd.Parameters.AddWithValue("q", query);
         cmd.Parameters.AddWithValue("lim", limit);
-        return await ReadResultsAsync(cmd);
+        return await ReadResultsAsync(cmd, ct);
     }
 
-    private static async Task<List<AddressResult>> ReadResultsAsync(NpgsqlCommand cmd)
+    private static async Task<List<AddressResult>> ReadResultsAsync(NpgsqlCommand cmd, CancellationToken ct)
     {
         var results = new List<AddressResult>();
-        await using var r = await cmd.ExecuteReaderAsync();
-        while (await r.ReadAsync())
+        await using var r = await cmd.ExecuteReaderAsync(ct);
+        while (await r.ReadAsync(ct))
         {
             var house = r.IsDBNull(1) ? "" : r.GetString(1);
             var street = r.IsDBNull(2) ? "" : r.GetString(2);
@@ -107,7 +107,7 @@ LIMIT @lim";
     }
 
     /// <summary>Insert a confirmed address into nad_sub.submissions; return its id.</summary>
-    public async Task<long> SubmitAsync(SubmitRequest s)
+    public async Task<long> SubmitAsync(SubmitRequest s, CancellationToken ct = default)
     {
         const string sql = @"
 INSERT INTO submissions
@@ -116,7 +116,7 @@ INSERT INTO submissions
 VALUES (@q, @uuid, @addr, @unit, @city, @county, @state, @zip, @lat, @lon, @score)
 RETURNING id";
 
-        await using var conn = await _nadSub.OpenConnectionAsync();
+        await using var conn = await _nadSub.OpenConnectionAsync(ct);
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("q", Nz(s.Query));
         cmd.Parameters.AddWithValue("uuid", Nz(s.Uuid));
@@ -130,44 +130,44 @@ RETURNING id";
         cmd.Parameters.AddWithValue("lon", (object?)s.Longitude ?? DBNull.Value);
         cmd.Parameters.AddWithValue("score", s.Score);
 
-        var id = await cmd.ExecuteScalarAsync();
+        var id = await cmd.ExecuteScalarAsync(ct);
         return Convert.ToInt64(id);
     }
 
     /// <summary>Per-county / per-state breakdowns for both databases.</summary>
-    public async Task<StatsResponse> StatsAsync()
+    public async Task<StatsResponse> StatsAsync(CancellationToken ct = default)
     {
         // Separate data sources, so the two scans can run concurrently.
-        var nadTask = DbStatsAsync(_nad, _table);
-        var nadSubTask = DbStatsAsync(_nadSub, "submissions");
+        var nadTask = DbStatsAsync(_nad, _table, ct);
+        var nadSubTask = DbStatsAsync(_nadSub, "submissions", ct);
         await Task.WhenAll(nadTask, nadSubTask);
         return new StatsResponse(await nadTask, await nadSubTask);
     }
 
-    private static async Task<DbStats> DbStatsAsync(NpgsqlDataSource ds, string table)
+    private static async Task<DbStats> DbStatsAsync(NpgsqlDataSource ds, string table, CancellationToken ct)
     {
-        await using var conn = await ds.OpenConnectionAsync();
+        await using var conn = await ds.OpenConnectionAsync(ct);
 
         long total;
         await using (var c = new NpgsqlCommand($"SELECT count(*) FROM {table}", conn))
-            total = Convert.ToInt64(await c.ExecuteScalarAsync());
+            total = Convert.ToInt64(await c.ExecuteScalarAsync(ct));
 
         var byState = await BucketsAsync(conn,
             $@"SELECT coalesce(nullif(trim(state), ''), '(unknown)') AS name, count(*)
-               FROM {table} GROUP BY 1 ORDER BY count(*) DESC, name");
+               FROM {table} GROUP BY 1 ORDER BY count(*) DESC, name", ct);
         var byCounty = await BucketsAsync(conn,
             $@"SELECT coalesce(nullif(trim(county), ''), '(unknown)') AS name, count(*)
-               FROM {table} GROUP BY 1 ORDER BY count(*) DESC, name");
+               FROM {table} GROUP BY 1 ORDER BY count(*) DESC, name", ct);
 
         return new DbStats(total, byState, byCounty);
     }
 
-    private static async Task<List<Bucket>> BucketsAsync(NpgsqlConnection conn, string sql)
+    private static async Task<List<Bucket>> BucketsAsync(NpgsqlConnection conn, string sql, CancellationToken ct)
     {
         await using var cmd = new NpgsqlCommand(sql, conn);
         var rows = new List<Bucket>();
-        await using var r = await cmd.ExecuteReaderAsync();
-        while (await r.ReadAsync())
+        await using var r = await cmd.ExecuteReaderAsync(ct);
+        while (await r.ReadAsync(ct))
             rows.Add(new Bucket(r.GetString(0), r.GetInt64(1)));
         return rows;
     }
