@@ -44,6 +44,13 @@ public record HealthResponse(string Status, string Table, long CacheHits, long C
 /// <summary>Error body for 400 responses.</summary>
 public record ErrorResponse(string Error);
 
+/// <summary>
+/// A verify query with no ZIP and no parseable city: an un-narrowed search
+/// over the national table cannot finish within the command timeout, so it is
+/// refused up front. Surfaced to the client as 422 with this message.
+/// </summary>
+public sealed class QueryTooBroadException(string message) : Exception(message);
+
 /// <summary>Body of POST /api/submit's success response.</summary>
 public record SubmitResponse(long Id, string Message);
 

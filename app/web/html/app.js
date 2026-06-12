@@ -50,7 +50,14 @@ async function search() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query: q }),
     });
-    if (!res.ok) throw new Error(`Search failed (HTTP ${res.status})`);
+    if (!res.ok) {
+      let msg = `Search failed (HTTP ${res.status})`;
+      try {
+        const { error } = await res.json();
+        if (error) msg = error;
+      } catch { /* non-JSON error body — keep the generic message */ }
+      throw new Error(msg);
+    }
     const matches = await res.json();
     renderResults(matches);
   } catch (err) {

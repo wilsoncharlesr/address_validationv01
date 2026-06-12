@@ -99,6 +99,21 @@ app.MapPost("/api/verify", async (VerifyRequest req, AddressRepository repo,
     {
         return Results.StatusCode(499);
     }
+    // Plain Results.Json (no explicit JsonTypeInfo) so the camelCase web
+    // defaults apply, matching every other ErrorResponse on the wire.
+    catch (QueryTooBroadException e)
+    {
+        return Results.Json(new ErrorResponse(e.Message),
+            statusCode: StatusCodes.Status422UnprocessableEntity);
+    }
+    catch (NpgsqlException e) when (e.InnerException is TimeoutException)
+    {
+        // The 5s CommandTimeout is the guard against searches the indexes
+        // can't carry; tell the user how to narrow instead of a bare 500.
+        return Results.Json(
+            new ErrorResponse("Search took too long — add a ZIP code, or a city and state."),
+            statusCode: StatusCodes.Status504GatewayTimeout);
+    }
 });
 
 app.MapPost("/api/submit", async (SubmitRequest req, AddressRepository repo, CancellationToken ct) =>

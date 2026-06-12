@@ -22,11 +22,19 @@ public sealed partial class AddressRepository
         "lower(coalesce(addno_full,'')||' '||coalesce(stnam_full,'')||' '||" +
         "coalesce(post_city,'')||' '||coalesce(state,'')||' '||coalesce(zip_code,''))";
 
+    // Display-city expression: NAD writes the literal placeholder
+    // 'Not stated' for a missing postal city (18M rows), with the real city in
+    // inc_muni. MUST stay identical to the expression the (city, add_number)
+    // btree index is built on, otherwise the locality search path below
+    // degrades to a sequential scan.
+    private const string CityExpr =
+        "upper(coalesce(nullif(nullif(post_city,''),'Not stated'), inc_muni))";
+
     // Columns returned by both search paths (the trailing similarity score is
     // only evaluated for the few rows that survive LIMIT).
     private static readonly string SelectColumns = $@"
         uuid, addno_full, stnam_full, unit,
-        coalesce(nullif(post_city, ''), inc_muni) AS city,
+        coalesce(nullif(nullif(post_city,''),'Not stated'), inc_muni) AS city,
         county, state, zip_code, latitude, longitude,
         similarity({FullExpr}, lower(@q)) AS score";
 
@@ -35,6 +43,9 @@ public sealed partial class AddressRepository
 
     [GeneratedRegex("^[A-Za-z_][A-Za-z0-9_]*$")]
     private static partial Regex IdentifierPattern();
+
+    [GeneratedRegex("[,;.]+")]
+    private static partial Regex SeparatorPattern();
 
     public AddressRepository(NpgsqlDataSource nad, NpgsqlDataSource nadSub, string table)
     {
@@ -48,14 +59,15 @@ public sealed partial class AddressRepository
     }
 
     /// <summary>Return the top <paramref name="limit"/> closest addresses to the query string.</summary>
+    /// <exception cref="QueryTooBroadException">No ZIP and no city could be parsed from the query.</exception>
     public async Task<List<AddressResult>> SearchAsync(string query, int limit = 3, CancellationToken ct = default)
     {
         await using var conn = await _nad.OpenConnectionAsync(ct);
 
         // Fast path: a 5-digit ZIP narrows the table to a few thousand rows via
         // the zip_code index, which we then rank by similarity (~tens of ms).
-        var zipMatch = ZipPattern().Match(query);
-        if (zipMatch.Success)
+        var zip = ExtractZip(query);
+        if (zip is not null)
         {
             var byZip = $@"
 SELECT {SelectColumns}
@@ -65,7 +77,7 @@ ORDER BY score DESC
 LIMIT @lim";
             await using var zipCmd = new NpgsqlCommand(byZip, conn);
             zipCmd.Parameters.Add(new NpgsqlParameter<string>("q", query));
-            zipCmd.Parameters.Add(new NpgsqlParameter<string>("zip", zipMatch.Groups[1].Value));
+            zipCmd.Parameters.Add(new NpgsqlParameter<string>("zip", zip));
             zipCmd.Parameters.Add(new NpgsqlParameter<int>("lim", limit));
 
             var zipResults = await ReadResultsAsync(zipCmd, ct);
@@ -73,17 +85,126 @@ LIMIT @lim";
                 return zipResults;   // otherwise the ZIP was bad — fall through
         }
 
-        // General path: GiST KNN over the whole table. The `<->` ordering walks
-        // the trigram index in nearest-first order and always returns matches.
-        var knn = $@"
+        // Locality path: narrow to one city via the (city, add_number) btree,
+        // then rank only those rows by similarity. A trigram KNN over the whole
+        // 96.9M-row national table blows the 5s CommandTimeout (and, unbounded,
+        // has OOM-killed Postgres), so a query we cannot narrow is refused with
+        // a clear message instead of timing out.
+        var (state, houseNumber, cities) = ParseLocality(query);
+        if (cities.Count == 0)
+            throw new QueryTooBroadException(
+                "Not enough to search on — include a ZIP code, or a city and state.");
+
+        var where = new List<string>(3) { $"{CityExpr} = ANY(@cities)" };
+        if (houseNumber is not null) where.Add("add_number = @hn");
+        if (state is not null) where.Add("state = @st");
+
+        var byCity = $@"
 SELECT {SelectColumns}
 FROM {_table}
-ORDER BY {FullExpr} <-> lower(@q)
+WHERE {string.Join(" AND ", where)}
+ORDER BY score DESC
 LIMIT @lim";
-        await using var cmd = new NpgsqlCommand(knn, conn);
+        await using var cmd = new NpgsqlCommand(byCity, conn);
+        cmd.Parameters.Add(new NpgsqlParameter<string[]>("cities", cities.ToArray()));
+        if (houseNumber is not null)
+            cmd.Parameters.Add(new NpgsqlParameter<long>("hn", houseNumber.Value));
+        if (state is not null)
+            cmd.Parameters.Add(new NpgsqlParameter<string>("st", state));
         cmd.Parameters.Add(new NpgsqlParameter<string>("q", query));
         cmd.Parameters.Add(new NpgsqlParameter<int>("lim", limit));
         return await ReadResultsAsync(cmd, ct);
+    }
+
+    /// <summary>
+    /// The ZIP to search, if the query contains one. Takes the last 5-digit
+    /// token: a leading one ("12345 Ventura Blvd") is a house number, not a
+    /// ZIP, unless it is all the user typed.
+    /// </summary>
+    private static string? ExtractZip(string query)
+    {
+        Match? last = null;
+        foreach (Match m in ZipPattern().Matches(query))
+            last = m;
+        if (last is null || (last.Index == 0 && query.Trim().Length > 5))
+            return null;
+        return last.Groups[1].Value;
+    }
+
+    /// <summary>
+    /// Best-effort parse of a freeform address into the parts the locality
+    /// search can filter on: a USPS state code, a numeric house number, and
+    /// candidate city names. The city is some suffix of the query ("... San
+    /// Antonio"), so the last 1–3 tokens are all offered and the index simply
+    /// rejects the wrong guesses.
+    /// </summary>
+    private static (string? State, long? HouseNumber, List<string> Cities) ParseLocality(string query)
+    {
+        var tokens = SeparatorPattern().Replace(query, " ")
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .ToList();
+
+        long? houseNumber = null;
+        if (tokens.Count > 1 && tokens[0].All(char.IsAsciiDigit)
+            && long.TryParse(tokens[0], out var hn))
+        {
+            houseNumber = hn;
+            tokens.RemoveAt(0);
+        }
+
+        // ZIPs belong to the ZIP path; keep them out of the city candidates.
+        tokens.RemoveAll(t => t.Length == 5 && t.All(char.IsAsciiDigit));
+
+        string? state = null;
+        for (var n = Math.Min(3, tokens.Count); n >= 1; n--)   // "district of columbia"
+        {
+            var tail = string.Join(' ', tokens.TakeLast(n));
+            if (StateCodes.TryGetValue(tail, out var code))
+            {
+                state = code;
+                tokens.RemoveRange(tokens.Count - n, n);
+                break;
+            }
+        }
+
+        var cities = new List<string>(4);
+        for (var n = 1; n <= Math.Min(3, tokens.Count); n++)
+            cities.Add(string.Join(' ', tokens.TakeLast(n)).ToUpperInvariant());
+
+        // "washington dc" parses entirely as the state; the postal city is fixed.
+        if (state == "DC")
+            cities.Add("WASHINGTON");
+
+        return (state, houseNumber, cities);
+    }
+
+    /// <summary>USPS state/territory codes keyed by both full name and code.</summary>
+    private static readonly Dictionary<string, string> StateCodes = BuildStateCodes();
+
+    private static Dictionary<string, string> BuildStateCodes()
+    {
+        var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["alabama"] = "AL", ["alaska"] = "AK", ["arizona"] = "AZ", ["arkansas"] = "AR",
+            ["california"] = "CA", ["colorado"] = "CO", ["connecticut"] = "CT", ["delaware"] = "DE",
+            ["florida"] = "FL", ["georgia"] = "GA", ["hawaii"] = "HI", ["idaho"] = "ID",
+            ["illinois"] = "IL", ["indiana"] = "IN", ["iowa"] = "IA", ["kansas"] = "KS",
+            ["kentucky"] = "KY", ["louisiana"] = "LA", ["maine"] = "ME", ["maryland"] = "MD",
+            ["massachusetts"] = "MA", ["michigan"] = "MI", ["minnesota"] = "MN", ["mississippi"] = "MS",
+            ["missouri"] = "MO", ["montana"] = "MT", ["nebraska"] = "NE", ["nevada"] = "NV",
+            ["new hampshire"] = "NH", ["new jersey"] = "NJ", ["new mexico"] = "NM", ["new york"] = "NY",
+            ["north carolina"] = "NC", ["north dakota"] = "ND", ["ohio"] = "OH", ["oklahoma"] = "OK",
+            ["oregon"] = "OR", ["pennsylvania"] = "PA", ["rhode island"] = "RI", ["south carolina"] = "SC",
+            ["south dakota"] = "SD", ["tennessee"] = "TN", ["texas"] = "TX", ["utah"] = "UT",
+            ["vermont"] = "VT", ["virginia"] = "VA", ["washington"] = "WA", ["west virginia"] = "WV",
+            ["wisconsin"] = "WI", ["wyoming"] = "WY",
+            ["district of columbia"] = "DC", ["washington dc"] = "DC",
+            ["puerto rico"] = "PR", ["guam"] = "GU", ["american samoa"] = "AS",
+            ["virgin islands"] = "VI", ["northern mariana islands"] = "MP",
+        };
+        foreach (var code in names.Values.Distinct().ToList())
+            names[code] = code;
+        return names;
     }
 
     private static async Task<List<AddressResult>> ReadResultsAsync(NpgsqlCommand cmd, CancellationToken ct)

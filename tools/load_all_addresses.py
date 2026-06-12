@@ -165,6 +165,14 @@ def free_gb_on_data_volume():
 def build_all_indexes(database, table, skip_trigram=False):
     t0 = time.monotonic()
     base.build_indexes(database, table, base.DEFAULT_INDEXES)
+    # City + house-number btree backing the API's no-ZIP locality search path.
+    # The expression MUST match AddressRepository.CityExpr in the C# service.
+    print("Creating city + house-number index...", flush=True)
+    base.psql(database,
+              "SET maintenance_work_mem = '1GB'; "
+              f"CREATE INDEX IF NOT EXISTS idx_{table}_city "
+              f"ON {table} (upper(coalesce(nullif(nullif(post_city,''),"
+              f"'Not stated'), inc_muni)), add_number)")
     if skip_trigram:
         print("Skipping trigram index (--no-trigram).")
     else:

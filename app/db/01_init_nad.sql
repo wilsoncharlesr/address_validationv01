@@ -28,6 +28,14 @@ USING gist (
 -- A plain GIN trigram index was used by an earlier design; drop it if present.
 DROP INDEX IF EXISTS idx_il_addresses_fulltrgm;
 
+-- City + house-number btree backing the API's no-ZIP locality search path
+-- (city/state/house number parsed out of the query). NAD writes the literal
+-- placeholder 'Not stated' for a missing postal city, with the real city in
+-- inc_muni. The expression MUST match AddressRepository.CityExpr in the C#
+-- service exactly.
+CREATE INDEX IF NOT EXISTS idx_il_addresses_city
+ON il_addresses (upper(coalesce(nullif(nullif(post_city,''),'Not stated'), inc_muni)), add_number);
+
 -- Grouped-stats helpers (county / state already indexed by the loaders, but
 -- make sure they exist for the statistics page aggregates).
 CREATE INDEX IF NOT EXISTS idx_il_addresses_county ON il_addresses (county);
