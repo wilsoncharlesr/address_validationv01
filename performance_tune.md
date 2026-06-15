@@ -13,12 +13,22 @@ at 100. The fixes that matter are configuration and architecture, not rewrites.
 
 ## Capacity math (read this first)
 
-The KNN path walks a GiST trigram index over ~4.86M rows: realistically
-**10–100 ms of Postgres CPU per query**.
+**Measured** (dev laptop, dockerized Postgres, 4.86M rows, after all fixes
+below — see `tests/perf` spec 02):
+
+| Path | p50 | p95 |
+|---|---|---|
+| Cache hit | 2 ms | 4 ms |
+| ZIP fast path, cache miss | 34 ms | 100 ms |
+| Full trigram KNN, cache miss | **1,174 ms** | 1,522 ms |
+
+The KNN miss cost is index-traversal CPU (raising `shared_buffers`
+128MB→2GB did not move it). At ~1.2 s of DB CPU per uncached KNN search:
 
 ```
-10,000 req/s × ~20 ms DB CPU per request = 200 CPU-seconds per second
-                                         ≈ 200 Postgres cores of pure search work
+10,000 req/s × 1.2 s DB CPU = 12,000 Postgres cores  → impossible uncached
+10,000 req/s × 0.034 s (zip path) = 340 cores        → still cluster-scale
+10,000 req/s × 90% cache hit rate × 0.034 s = 34 cores of misses → feasible
 ```
 
 No C# change fixes that. The two levers that do:

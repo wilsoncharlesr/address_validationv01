@@ -13,7 +13,7 @@ export const ZIP_QUERIES: string[] = [
   '233 s wacker dr chicago il 60606',
   '100 n western ave chicago il 60612',
   '500 e monroe st springfield il 62701',
-  '1401 w green st urbana il 61801',
+  '9000 s commercial ave chicago il 60617',
   '4800 n broadway chicago il 60640',
   '201 w lake st addison il 60101',
   '1200 e algonquin rd schaumburg il 60173',
@@ -46,4 +46,15 @@ export const ALL_VERIFY_QUERIES = [...ZIP_QUERIES, ...KNN_QUERIES, ...BAD_ZIP_QU
 
 export function pick<T>(arr: T[], i: number): T {
   return arr[i % arr.length];
+}
+
+/**
+ * A query that is unique per seq (varying house number), so it always MISSES
+ * the API's verify-result cache and exercises the real database path. Use the
+ * plain corpora to measure cache-hit behavior, this to measure miss behavior.
+ */
+export function uniqueQuery(arr: string[], seq: number): string {
+  const q = pick(arr, seq);
+  const house = String(100 + (seq % 9899));
+  return /^\d+/.test(q) ? q.replace(/^\d+/, house) : `${house} ${q}`;
 }

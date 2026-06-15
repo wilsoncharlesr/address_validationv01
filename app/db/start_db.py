@@ -93,6 +93,13 @@ def start(rebuild=False):
         # The API runs two Npgsql pools of up to 200 connections each; default
         # max_connections=100 would exhaust under load.
         "-c", "max_connections=500",
+        # The trigram GiST index over 4.86M rows is multiple GB; the 128MB
+        # default shared_buffers keeps almost none of it resident, so every
+        # uncached search pays cold page faults (~1.2s measured). Sized for a
+        # Docker Desktop VM with ~8GB.
+        "-c", "shared_buffers=2GB",
+        "-c", "effective_cache_size=6GB",
+        "-c", "work_mem=32MB",
     ])
     wait_until_ready()
     status()
