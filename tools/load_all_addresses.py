@@ -63,6 +63,9 @@ FULL_EXPR = (
     "coalesce(zip_code,   '') )"
 )
 
+# MUST match AddressScoring.StreetExpr in the C# service.
+STREET_EXPR = "lower(coalesce(stnam_full, ''))"
+
 
 TF_DIR = os.path.join(os.path.dirname(SCRIPT_DIR), "app", "terraform")
 TFVARS_PATH = os.path.join(TF_DIR, "terraform.tfvars")
@@ -184,6 +187,15 @@ def build_all_indexes(database, table, skip_trigram=False):
                   "SET maintenance_work_mem = '1GB'; "
                   f"CREATE INDEX IF NOT EXISTS idx_{table}_fullgist "
                   f"ON {table} USING gist (({FULL_EXPR}) gist_trgm_ops)")
+    print("Creating street + house-number indexes...", flush=True)
+    base.psql(database,
+              "SET maintenance_work_mem = '1GB'; "
+              f"CREATE INDEX IF NOT EXISTS idx_{table}_hn_street "
+              f"ON {table} (add_number, ({STREET_EXPR}) varchar_pattern_ops); "
+              f"CREATE INDEX IF NOT EXISTS idx_{table}_zip_hn_street "
+              f"ON {table} (zip_code, add_number, ({STREET_EXPR}) varchar_pattern_ops); "
+              f"CREATE INDEX IF NOT EXISTS idx_{table}_st_hn_street "
+              f"ON {table} (state, add_number, ({STREET_EXPR}) varchar_pattern_ops)")
     base.psql(database, f"ANALYZE {table}")
     print(f"Indexes ready in {(time.monotonic() - t0) / 60:.1f} min.")
 

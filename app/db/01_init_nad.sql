@@ -41,4 +41,17 @@ ON il_addresses (upper(coalesce(nullif(nullif(post_city,''),'Not stated'), inc_m
 CREATE INDEX IF NOT EXISTS idx_il_addresses_county ON il_addresses (county);
 CREATE INDEX IF NOT EXISTS idx_il_addresses_state  ON il_addresses (state);
 
+-- Street + house-number paths (e.g. "555 Monroe" parsed as street-first).
+-- Expression MUST match AddressScoring.StreetExpr in the C# service.
+CREATE INDEX IF NOT EXISTS idx_il_addresses_hn_street
+ON il_addresses (add_number, lower(coalesce(stnam_full, '')) varchar_pattern_ops);
+
+-- ZIP + house + street prefix (highest-accuracy path when ZIP is present).
+CREATE INDEX IF NOT EXISTS idx_il_addresses_zip_hn_street
+ON il_addresses (zip_code, add_number, lower(coalesce(stnam_full, '')) varchar_pattern_ops);
+
+-- State-scoped house + street when state is parsed without a city.
+CREATE INDEX IF NOT EXISTS idx_il_addresses_st_hn_street
+ON il_addresses (state, add_number, lower(coalesce(stnam_full, '')) varchar_pattern_ops);
+
 ANALYZE il_addresses;
