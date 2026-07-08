@@ -1,0 +1,277 @@
+{
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/api/AddressRepository.cs": {
+    "mtime": 1781226981.039883,
+    "ast_hash": "bd53cbcb29986d5e66385e9f161fddc2",
+    "semantic_hash": "bd53cbcb29986d5e66385e9f161fddc2"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/api/AddressVerification.csproj": {
+    "mtime": 1781102850.630291,
+    "ast_hash": "f724d43cd853fbdd7975dc164ef65865",
+    "semantic_hash": "f724d43cd853fbdd7975dc164ef65865"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/api/AppJsonContext.cs": {
+    "mtime": 1781191459.7956874,
+    "ast_hash": "9377cc3a35e51188eab51da0c7dfd5fa",
+    "semantic_hash": "9377cc3a35e51188eab51da0c7dfd5fa"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/api/Caching.cs": {
+    "mtime": 1781191365.369208,
+    "ast_hash": "8faa67fa6bfaa842918f9571006ad510",
+    "semantic_hash": "8faa67fa6bfaa842918f9571006ad510"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/api/Models.cs": {
+    "mtime": 1781226647.0765228,
+    "ast_hash": "9cd1ccddffd48da9891b7030f76f8c94",
+    "semantic_hash": "9cd1ccddffd48da9891b7030f76f8c94"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/api/Program.cs": {
+    "mtime": 1781227109.4606254,
+    "ast_hash": "f885dc9bcc6f1bd147356f4ddefb1f11",
+    "semantic_hash": "f885dc9bcc6f1bd147356f4ddefb1f11"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/api/appsettings.json": {
+    "mtime": 1781102911.3828053,
+    "ast_hash": "732f4d75514e890746f0170256ed9654",
+    "semantic_hash": "732f4d75514e890746f0170256ed9654"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/db/01_init_nad.sql": {
+    "mtime": 1781226984.8111734,
+    "ast_hash": "4edf4e7dfd0ff88487c96eb16d97ac50",
+    "semantic_hash": "4edf4e7dfd0ff88487c96eb16d97ac50"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/db/02_init_nad_sub.sql": {
+    "mtime": 1781102845.4458883,
+    "ast_hash": "3f9f14e9eae0066538695472d1c0ca0f",
+    "semantic_hash": "3f9f14e9eae0066538695472d1c0ca0f"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/db/initdb/10-bootstrap.sh": {
+    "mtime": 1781119892.9374382,
+    "ast_hash": "76b3a2428d6d0f6f2981671a94cdddb8",
+    "semantic_hash": "76b3a2428d6d0f6f2981671a94cdddb8"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/db/relocate-docker-to-data.sh": {
+    "mtime": 1781122179.8313022,
+    "ast_hash": "ad1dfd444f0dd2c62a683abd3154bc8e",
+    "semantic_hash": "ad1dfd444f0dd2c62a683abd3154bc8e"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/db/start_db.py": {
+    "mtime": 1781193527.694502,
+    "ast_hash": "be01b0f039673454aa2c75a45c5e8ab6",
+    "semantic_hash": "be01b0f039673454aa2c75a45c5e8ab6"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/start.py": {
+    "mtime": 1781119959.9238195,
+    "ast_hash": "e243fabb26b47da598b8b32a20de8383",
+    "semantic_hash": "e243fabb26b47da598b8b32a20de8383"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/terraform/.terraform.lock.hcl": {
+    "mtime": 1781103654.986291,
+    "ast_hash": "ab3454a34a327cd996877b98f7e1a993",
+    "semantic_hash": "ab3454a34a327cd996877b98f7e1a993"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/terraform/main.tf": {
+    "mtime": 1781103082.921877,
+    "ast_hash": "e83c01239e2e63dbf11532fd05b62de5",
+    "semantic_hash": "e83c01239e2e63dbf11532fd05b62de5"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/terraform/outputs.tf": {
+    "mtime": 1781103086.721795,
+    "ast_hash": "546217786eaf6e5ddbb97622cfc613e4",
+    "semantic_hash": "546217786eaf6e5ddbb97622cfc613e4"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/terraform/variables.tf": {
+    "mtime": 1781103071.3581018,
+    "ast_hash": "64969caaa38bf47dd40cc0b47633083b",
+    "semantic_hash": "64969caaa38bf47dd40cc0b47633083b"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/terraform/versions.tf": {
+    "mtime": 1781103055.6414883,
+    "ast_hash": "8ca1239cafb532722c703929e5879c76",
+    "semantic_hash": "8ca1239cafb532722c703929e5879c76"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/web/html/app.js": {
+    "mtime": 1781226665.434223,
+    "ast_hash": "902fe7685ef9c087188930ee3dc030ed",
+    "semantic_hash": "902fe7685ef9c087188930ee3dc030ed"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/web/html/stats.js": {
+    "mtime": 1781103046.728494,
+    "ast_hash": "0c19173cad8c570744ea6fae35d83311",
+    "semantic_hash": "0c19173cad8c570744ea6fae35d83311"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tests/perf/helpers/api.ts": {
+    "mtime": 1781187099.0821507,
+    "ast_hash": "da5009abb5008177237eaf6098c86860",
+    "semantic_hash": "da5009abb5008177237eaf6098c86860"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tests/perf/helpers/loadgen.ts": {
+    "mtime": 1781187088.7631378,
+    "ast_hash": "8d8404a3a7e899105520f97e94fbf565",
+    "semantic_hash": "8d8404a3a7e899105520f97e94fbf565"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tests/perf/helpers/metrics.ts": {
+    "mtime": 1781187069.6138566,
+    "ast_hash": "bfdd1b78c558187dbe939812cdc274b0",
+    "semantic_hash": "bfdd1b78c558187dbe939812cdc274b0"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tests/perf/helpers/queries.ts": {
+    "mtime": 1781193527.695307,
+    "ast_hash": "af81404ee66baadb3b30cfcb28f18cc8",
+    "semantic_hash": "af81404ee66baadb3b30cfcb28f18cc8"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tests/perf/k6/verify-10k.js": {
+    "mtime": 1781187238.06238,
+    "ast_hash": "00c85d2a8c6ac51e093d1330af6a6846",
+    "semantic_hash": "00c85d2a8c6ac51e093d1330af6a6846"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tests/perf/package.json": {
+    "mtime": 1781187054.059044,
+    "ast_hash": "aeafc5319def2c0301a52d3608d9bc08",
+    "semantic_hash": "aeafc5319def2c0301a52d3608d9bc08"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tests/perf/playwright.config.ts": {
+    "mtime": 1781187058.6672747,
+    "ast_hash": "ec4289e998b04722de0c13872a6b49ff",
+    "semantic_hash": "ec4289e998b04722de0c13872a6b49ff"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tests/perf/results/perf-results.json": {
+    "mtime": 1781193615.0284657,
+    "ast_hash": "be73a297334bba257704f0dcff926ba8",
+    "semantic_hash": "be73a297334bba257704f0dcff926ba8"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tests/perf/test-results/.last-run.json": {
+    "mtime": 1781193615.0289059,
+    "ast_hash": "f196824657d8858bc7fa44eecbba38b1",
+    "semantic_hash": "f196824657d8858bc7fa44eecbba38b1"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tests/perf/tests/01-health.spec.ts": {
+    "mtime": 1781187123.631023,
+    "ast_hash": "3bd548f3b6862e27add189312d08352f",
+    "semantic_hash": "3bd548f3b6862e27add189312d08352f"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tests/perf/tests/02-verify-latency.spec.ts": {
+    "mtime": 1781193527.695586,
+    "ast_hash": "5420ddd563ce20c65406e9a2cc43342c",
+    "semantic_hash": "5420ddd563ce20c65406e9a2cc43342c"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tests/perf/tests/03-verify-throughput.spec.ts": {
+    "mtime": 1781193527.6958535,
+    "ast_hash": "02d14f8fe40ac658157b41fcc587f697",
+    "semantic_hash": "02d14f8fe40ac658157b41fcc587f697"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tests/perf/tests/04-submit-perf.spec.ts": {
+    "mtime": 1781187171.2049787,
+    "ast_hash": "22ce1f78939957789bebacf9244eba0f",
+    "semantic_hash": "22ce1f78939957789bebacf9244eba0f"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tests/perf/tests/05-stats-perf.spec.ts": {
+    "mtime": 1781187186.880421,
+    "ast_hash": "6b86a5680a944912be94a2c2b9153fab",
+    "semantic_hash": "6b86a5680a944912be94a2c2b9153fab"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tests/perf/tests/06-mixed-soak.spec.ts": {
+    "mtime": 1781187202.5872538,
+    "ast_hash": "e05b22a7ac47748eb24b3ab128554aa6",
+    "semantic_hash": "e05b22a7ac47748eb24b3ab128554aa6"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tests/perf/tsconfig.json": {
+    "mtime": 1781187246.662894,
+    "ast_hash": "24e2f7577dfc0d66dc4a1b38049bc918",
+    "semantic_hash": "24e2f7577dfc0d66dc4a1b38049bc918"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tools/describe_database.py": {
+    "mtime": 1781054461.78745,
+    "ast_hash": "be2b29231a6aea0e161343c8772c8c20",
+    "semantic_hash": "be2b29231a6aea0e161343c8772c8c20"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tools/list_counties.sql": {
+    "mtime": 1781061398.8634474,
+    "ast_hash": "1247ffeec543d6e933fdc9ff114b358e",
+    "semantic_hash": "1247ffeec543d6e933fdc9ff114b358e"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tools/load_all_addresses.py": {
+    "mtime": 1781226988.816348,
+    "ast_hash": "4a9559edfc0d6c2867a34c75d217d19b",
+    "semantic_hash": "4a9559edfc0d6c2867a34c75d217d19b"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tools/load_harvest_record.py": {
+    "mtime": 1781010272.9790478,
+    "ast_hash": "50846c8108cd5f15018e30acae211e5a",
+    "semantic_hash": "50846c8108cd5f15018e30acae211e5a"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tools/load_illinois_postgres.py": {
+    "mtime": 1781060400.6968277,
+    "ast_hash": "03eb0dda4a78613da5e537e233d4445d",
+    "semantic_hash": "03eb0dda4a78613da5e537e233d4445d"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tools/load_nad_data.py": {
+    "mtime": 1781011965.0330374,
+    "ast_hash": "2dab6c9cdd798a8097989bd9fc3487f2",
+    "semantic_hash": "2dab6c9cdd798a8097989bd9fc3487f2"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tools/load_nad_postgres.py": {
+    "mtime": 1781060399.100291,
+    "ast_hash": "94790d3052d9301b66fdfe1f65840735",
+    "semantic_hash": "94790d3052d9301b66fdfe1f65840735"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tools/query_507_leavett.sql": {
+    "mtime": 1781061636.3070624,
+    "ast_hash": "e226d437b1e4694a4eb8d2ae2c2d5152",
+    "semantic_hash": "e226d437b1e4694a4eb8d2ae2c2d5152"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tools/start_postgres.py": {
+    "mtime": 1781060390.3475204,
+    "ast_hash": "e792deaa6334188576b31f1c40d9959b",
+    "semantic_hash": "e792deaa6334188576b31f1c40d9959b"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/CLAUDE.md": {
+    "mtime": 1781226049.089307,
+    "ast_hash": "82efb97a359f5c7290bf2513d14686be",
+    "semantic_hash": "82efb97a359f5c7290bf2513d14686be"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/Melissa.md": {
+    "mtime": 1780925879.100092,
+    "ast_hash": "2c5724ec4dc6e82aef30c59b55bdef2c",
+    "semantic_hash": "2c5724ec4dc6e82aef30c59b55bdef2c"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/Melissa_Address_Verification_CSharp_Guide.md": {
+    "mtime": 1780972855.095204,
+    "ast_hash": "824a5f47e07d4cd6984e880bcf7d4a7b",
+    "semantic_hash": "824a5f47e07d4cd6984e880bcf7d4a7b"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/README.md": {
+    "mtime": 1781103186.7543287,
+    "ast_hash": "cbf8faf34a3358a8a19a0209de1a2fb0",
+    "semantic_hash": "cbf8faf34a3358a8a19a0209de1a2fb0"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/web/html/index.html": {
+    "mtime": 1781226689.4424667,
+    "ast_hash": "f9a06635547afe0070865d542f25e31a",
+    "semantic_hash": "f9a06635547afe0070865d542f25e31a"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/app/web/html/stats.html": {
+    "mtime": 1781103030.7076378,
+    "ast_hash": "de3f95af04eb7b708229150d0a7e8f15",
+    "semantic_hash": "de3f95af04eb7b708229150d0a7e8f15"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/implementation_plan.md": {
+    "mtime": 1781189350.28328,
+    "ast_hash": "48134ad4664a8f9d2131ba26ff2ed06d",
+    "semantic_hash": "48134ad4664a8f9d2131ba26ff2ed06d"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/performance_tune.md": {
+    "mtime": 1781193527.6947818,
+    "ast_hash": "7edf49910b67fa388c9617da1ce3ed88",
+    "semantic_hash": "7edf49910b67fa388c9617da1ce3ed88"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tests/perf/README.md": {
+    "mtime": 1781193527.6950889,
+    "ast_hash": "0bdda07c06252993683ab785c9119b41",
+    "semantic_hash": "0bdda07c06252993683ab785c9119b41"
+  },
+  "/Users/wilsoncharlesr/Documents/IDEC/address_verificationv01/tests/perf/playwright-report/index.html": {
+    "mtime": 1781193615.025158,
+    "ast_hash": "32f9866c202669a90e9e185245244b81",
+    "semantic_hash": "32f9866c202669a90e9e185245244b81"
+  }
+}
