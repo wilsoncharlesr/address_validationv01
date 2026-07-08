@@ -1,18 +1,16 @@
 // Open-loop soak at a constant arrival rate with a production-like mix:
-//   90% verify (70% zip-path / 20% knn / 10% bad-zip), 8% submit, 2% stats.
-// Because arrivals are paced (not closed-loop), a saturated server cannot
-// hide behind reduced offered load — it shows up as climbing latency, shed
-// requests, and a low achievedRatio.
-//
-// Scale via env: TARGET_RPS=500 SOAK_S=60 npx playwright test tests/06-*
-// (One Node process generates roughly 1-2K req/s at best; for a true
-// 10K req/s test use a distributed generator — see README.)
+//   90% verify (40% zip / 30% locality / 20% street / 10% fusion+bad-zip),
+//   8% submit, 2% stats.
 
 import { test, expect, APIRequestContext, APIResponse } from '@playwright/test';
-import { pacedLoop } from '../helpers/loadgen';
-import { formatReport } from '../helpers/metrics';
-import { BASE_URL, envInt, envFloat, fireVerify, fireSubmit, fireStats, mulberry32 } from '../helpers/api';
-import { ZIP_QUERIES, KNN_QUERIES, BAD_ZIP_QUERIES, pick } from '../helpers/queries';
+import { pacedLoop } from '../../helpers/loadgen';
+import { formatReport } from '../../helpers/metrics';
+import { BASE_URL, envInt, envFloat, fireVerify, fireSubmit, fireStats, mulberry32 } from '../../helpers/api';
+import { pickWeightedVerifyQuery, pickFullPathVerifyQuery } from '../../helpers/queries';
+
+const pickLoadQuery = process.env.USE_FULL_PATH_MIX === '1'
+  ? pickFullPathVerifyQuery
+  : pickWeightedVerifyQuery;
 
 const TARGET_RPS = envInt('TARGET_RPS', 100);
 const SOAK_S = envInt('SOAK_S', 30);
@@ -26,12 +24,7 @@ test.describe('mixed workload soak', () => {
 
     const fire = (ctx: APIRequestContext, seq: number): Promise<APIResponse> => {
       const roll = rand();
-      if (roll < 0.90) {
-        const v = rand();
-        if (v < 0.70) return fireVerify(ctx, pick(ZIP_QUERIES, seq));
-        if (v < 0.90) return fireVerify(ctx, pick(KNN_QUERIES, seq));
-        return fireVerify(ctx, pick(BAD_ZIP_QUERIES, seq));
-      }
+      if (roll < 0.90) return fireVerify(ctx, pickLoadQuery(seq));
       if (roll < 0.98) return fireSubmit(ctx, seq);
       return fireStats(ctx);
     };
@@ -53,9 +46,7 @@ test.describe('mixed workload soak', () => {
 
     expect(
       r.achievedRatio,
-      `only ${(r.achievedRatio * 100).toFixed(1)}% of the scheduled ${TARGET_RPS} req/s completed — ` +
-        'either the server is saturated (check p99 and shed) or the load generator machine is; ' +
-        'rerun with a lower TARGET_RPS to find the sustainable rate',
+      `only ${(r.achievedRatio * 100).toFixed(1)}% of the scheduled ${TARGET_RPS} req/s completed`,
     ).toBeGreaterThanOrEqual(MIN_ACHIEVED);
     expect(r.errorRate, `error rate ${(r.errorRate * 100).toFixed(2)}% under mixed load`).toBeLessThanOrEqual(ERROR_RATE_MAX);
 

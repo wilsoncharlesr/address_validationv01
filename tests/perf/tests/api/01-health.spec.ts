@@ -3,8 +3,8 @@
 // If this is slow, nothing downstream can be fast.
 
 import { test, expect, request } from '@playwright/test';
-import { summarize, formatReport, Shot } from '../helpers/metrics';
-import { BASE_URL, envInt, fireHealth } from '../helpers/api';
+import { summarize, formatReport, Shot } from '../../helpers/metrics';
+import { BASE_URL, envInt, fireHealth } from '../../helpers/api';
 
 const HEALTH_N = envInt('HEALTH_N', 200);
 const HEALTH_P95_MS = envInt('HEALTH_P95_MS', 100);

@@ -4,10 +4,10 @@
 // disproves) that a trickle of stats traffic degrades /api/verify latency.
 
 import { test, expect, request } from '@playwright/test';
-import { closedLoop } from '../helpers/loadgen';
-import { summarize, formatReport, Shot } from '../helpers/metrics';
-import { BASE_URL, envInt, fireStats, fireVerify } from '../helpers/api';
-import { ZIP_QUERIES, pick } from '../helpers/queries';
+import { closedLoop } from '../../helpers/loadgen';
+import { summarize, formatReport, Shot } from '../../helpers/metrics';
+import { BASE_URL, envInt, fireStats, fireVerify } from '../../helpers/api';
+import { ZIP_QUERIES, pick } from '../../helpers/queries';
 
 const STATS_N = envInt('STATS_N', 5);
 const STATS_P95_MS = envInt('STATS_P95_MS', 5000);

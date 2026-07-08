@@ -5,9 +5,9 @@
 //   psql -d nad_sub -c "DELETE FROM submissions WHERE query_text LIKE 'PERFTEST::%'"
 
 import { test, expect } from '@playwright/test';
-import { closedLoop } from '../helpers/loadgen';
-import { formatReport } from '../helpers/metrics';
-import { BASE_URL, envInt, envFloat, fireSubmit } from '../helpers/api';
+import { closedLoop } from '../../helpers/loadgen';
+import { formatReport } from '../../helpers/metrics';
+import { BASE_URL, envInt, envFloat, fireSubmit } from '../../helpers/api';
 
 const WORKERS = envInt('SUBMIT_WORKERS', 10);
 const DURATION_S = envInt('SUBMIT_DURATION_S', 10);

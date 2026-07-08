@@ -1,0 +1,29 @@
+[
+  {
+    "query": "555 Monroe",
+    "addressContains": "Monroe",
+    "minScore": 0.5,
+    "description": "Street-first: top result should be a Monroe street, not a city named Monroe"
+  },
+  {
+    "query": "500 e monroe st springfield il",
+    "cityContains": "Springfield",
+    "state": "IL",
+    "minScore": 0.4,
+    "description": "Locality path with street suffix"
+  },
+  {
+    "query": "1128 mobile ave pasadena tx",
+    "addressContains": "Mobile",
+    "state": "TX",
+    "minScore": 0.4,
+    "description": "State + city + street without ZIP"
+  },
+  {
+    "query": "1916 lombard ave berwyn il 60402",
+    "addressContains": "Lombard",
+    "state": "IL",
+    "minScore": 0.5,
+    "description": "ZIP fast path"
+  }
+]

@@ -1,0 +1,86 @@
+name: Playwright Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'tests/perf/**'
+      - '.github/workflows/playwright.yml'
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'tests/perf/**'
+      - '.github/workflows/playwright.yml'
+
+jobs:
+  api-perf:
+    name: API performance
+    runs-on: ubuntu-latest
+    # Full NAD data is not available on GitHub-hosted runners; this job is a
+    # smoke template. Run `npm run test:api` locally against a loaded stack.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: tests/perf/package-lock.json
+
+      - name: Install dependencies
+        working-directory: tests/perf
+        run: npm ci
+
+      - name: Install Playwright
+        working-directory: tests/perf
+        run: npx playwright install --with-deps chromium
+
+      - name: Check test TypeScript compiles
+        working-directory: tests/perf
+        run: npx tsc --noEmit
+
+      - name: Run API perf tests (skipped without stack)
+        if: false
+        working-directory: tests/perf
+        run: npm run test:api
+        env:
+          API_BASE_URL: http://localhost:8081
+
+  e2e:
+    name: Browser E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: tests/perf/package-lock.json
+
+      - name: Install dependencies
+        working-directory: tests/perf
+        run: npm ci
+
+      - name: Install Playwright
+        working-directory: tests/perf
+        run: npx playwright install --with-deps chromium
+
+      - name: Check test TypeScript compiles
+        working-directory: tests/perf
+        run: npx tsc --noEmit
+
+      - name: Run E2E tests (skipped without stack)
+        if: false
+        working-directory: tests/perf
+        run: npm run test:e2e
+        env:
+          WEB_BASE_URL: http://localhost:8088
+
+      - name: Upload report
+        if: always() && false
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/perf/playwright-report/

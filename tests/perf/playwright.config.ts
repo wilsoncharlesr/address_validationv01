@@ -1,22 +1,36 @@
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 
-// All load generation happens *inside* each test (worker pools over
-// APIRequestContext). Playwright's own parallelism must stay at 1 so two
-// load tests never run at once and skew each other's numbers.
+const API_BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:8081';
+const WEB_BASE_URL = process.env.WEB_BASE_URL ?? 'http://localhost:8088';
+
 export default defineConfig({
-  testDir: './tests',
+  globalSetup: './globalSetup.ts',
   fullyParallel: false,
-  workers: 1,
-  timeout: 10 * 60 * 1000, // load steps run for tens of seconds each
+  timeout: 10 * 60 * 1000,
   expect: { timeout: 30_000 },
   reporter: [
     ['list'],
     ['html', { open: 'never' }],
     ['json', { outputFile: 'results/perf-results.json' }],
   ],
-  use: {
-    // 8081 is the API container published directly on the host (terraform
-    // api_port default). Point at 8088/api to measure through nginx instead.
-    baseURL: process.env.API_BASE_URL ?? 'http://localhost:8081',
-  },
+  projects: [
+    {
+      name: 'api-perf',
+      testDir: './tests/api',
+      workers: 1,
+      use: {
+        baseURL: API_BASE_URL,
+      },
+    },
+    {
+      name: 'ui-e2e',
+      testDir: './tests/e2e',
+      workers: 2,
+      fullyParallel: true,
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: WEB_BASE_URL,
+      },
+    },
+  ],
 });

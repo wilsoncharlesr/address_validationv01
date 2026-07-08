@@ -2,12 +2,15 @@
   "name": "address-verification-perf-tests",
   "version": "1.0.0",
   "private": true,
-  "description": "Playwright performance test suite for the AddressVerification C# API",
+  "description": "Playwright functional and performance tests for Address Verification",
   "scripts": {
     "test": "playwright test",
-    "test:latency": "playwright test tests/02-verify-latency.spec.ts",
-    "test:throughput": "playwright test tests/03-verify-throughput.spec.ts",
-    "test:soak": "playwright test tests/06-mixed-soak.spec.ts",
+    "test:api": "playwright test --project=api-perf",
+    "test:e2e": "playwright test --project=ui-e2e",
+    "test:latency": "playwright test --project=api-perf tests/api/02-verify-latency.spec.ts",
+    "test:throughput": "playwright test --project=api-perf tests/api/03-verify-throughput.spec.ts",
+    "test:soak": "playwright test --project=api-perf tests/api/06-mixed-soak.spec.ts",
+    "test:cleanup": "bash scripts/cleanup.sh",
     "report": "playwright show-report"
   },
   "devDependencies": {
